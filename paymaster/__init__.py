@@ -44,15 +44,19 @@ class LocalSettings(object):
         self.local_settings = local_settings
         self.outer_settings = outer_settings
 
-        values = [getattr(outer_settings, name, None) for name in REQUIRED]
+    def __getattr__(self, name):
+        return getattr(self.outer_settings, name,
+            self.local_settings.get(name))
+
+    def validate(self):
+        values = [getattr(self.outer_settings, name, None) for name in REQUIRED]
         if not all(values):
             raise ImproperlyConfigured(
                 'The {0} setting must not be empty. Pleaze, set it or disable '
                 'paymaster application.'.format(', '.join(REQUIRED)))
 
-    def __getattr__(self, name):
-        return getattr(self.outer_settings, name,
-                       self.local_settings.get(name))
 
 settings = LocalSettings(LOCAL, user_settings)
 logger = logging.getLogger('paymaster')
+
+default_app_config = 'paymaster.apps.PaymasterConfig'
