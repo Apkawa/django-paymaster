@@ -13,18 +13,16 @@ import base64
 import urllib
 import hashlib
 from datetime import datetime, timedelta
-
 from django.views import generic
 from django.http import HttpResponseRedirect, HttpResponse, QueryDict
 from django.utils.translation import ugettext_lazy as _
 from django.core.exceptions import ValidationError
-
 from .models import Invoice
 from . import settings
 from . import signals
 from . import logger
 from . import utils
-
+from . import forms
 
 class InitialView(generic.FormView):
     """
@@ -36,15 +34,32 @@ class InitialView(generic.FormView):
     """
 
     _payment_no = None
+    user = None
+
+    form_class = forms.DefaultPaymentForm
+    template_name = 'paymaster/init.html'
 
     phone_field = 'phone'
     email_field = 'email'
     amount_key = 'amount'
 
-    def form_valid(self, form):
-        """ Формируем переход на сайт платежной системы """
+    success_url = '.'
+
+
+    def get_user(self, form):
+        """
+        Пытаемся получить пользователя. Может быть переопределено
+        :return:
+        """
         if not self.request.user.is_authenticated():
             logger.warn(u'No user. Permission denied.')
+            return None
+        return self.request.user
+
+    def form_valid(self, form):
+        """ Формируем переход на сайт платежной системы """
+        self.user = self.get_user(form)
+        if not self.user:
             return HttpResponse('NO ACCESS', status=403)
 
         try:
@@ -54,18 +69,19 @@ class InitialView(generic.FormView):
         except ValidationError:
             return self.form_invalid(form)
 
-        logger.info(u'User {0} redirected to {1}'.format(
-            self.request.user.username, url))
+        logger.info(
+            u'User {0} redirected to {1}'.format(self.user, url)
+        )
 
         return HttpResponseRedirect(url)
 
     def get_payer(self):
         """ Получаем объект-плательщика """
-        return self.request.user
+        return self.user
 
     def get_payer_id(self):
         """ Получаем кодированный идентификатор плательщика """
-        return utils.encode_payer(self.request.user)
+        return utils.encode_payer(self.get_payer())
 
     def get_amount(self, form):
         """ Получаем сумму платежа """

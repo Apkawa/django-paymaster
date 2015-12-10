@@ -1,3 +1,17 @@
+from collections import namedtuple
+
 from django.shortcuts import render
 
-# Create your views here.
+
+from paymaster.views import InitialView
+
+
+class NoUserInitialView(InitialView):
+    Payer = namedtuple('Payer', 'pk,email,phone')
+
+    def get_user(self, form):
+        return True
+
+    def get_payer(self):
+        return self.Payer(*[1, 'test@test.ru', '+7 999 999 99 99'])
+
