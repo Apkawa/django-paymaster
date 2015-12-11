@@ -1,14 +1,30 @@
 # -*- coding: utf-8 -*-
-
+import base64
+import hashlib
 from uuid import uuid4
 from datetime import datetime
 from simplecrypt import encrypt, decrypt, DecryptionException
-
+from django.utils.importlib import import_module
 from django.contrib.auth import get_user_model
 from django.views.decorators.csrf import csrf_exempt
-
 from . import settings
 from . import logger
+
+
+def calculate_hash(data, hashed_fields):
+    _line = u';'.join(map(str, [data.get(key) for key in hashed_fields]))
+    _line += u';{0}'.format(settings.PAYMASTER_PASSWORD)
+    hash_method = settings.PAYMASTER_HASH_METHOD
+    _hash = getattr(hashlib, hash_method)(_line.encode('utf-8'))
+    _hash = base64.encodestring(_hash.digest()).replace('\n', '')
+    return _hash
+
+
+DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+
+
+def format_dt(dt):
+    return dt.strftime(DATETIME_FORMAT)
 
 
 def decode_payer(enc):
@@ -34,6 +50,13 @@ def encode_payer(user):
 def number_generetor(view, form):
     """ Генератор номера платежа (по умолчанию) """
     return u'{:%Y%m%d}-{:08x}'.format(datetime.now(), uuid4().get_fields()[0])
+
+
+def import_class(name):
+    module_name, klass_name = name.rsplit('.', 1)
+    mod = import_module(module_name)
+    klass = getattr(mod, klass_name)
+    return klass
 
 
 class CSRFExempt(object):

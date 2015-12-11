@@ -37,6 +37,7 @@ class InvoiceManager(models.Manager):
 
         date = data['LMI_SYS_PAYMENT_DATE']
         date = datetime.strptime(date, '%Y-%m-%dT%H:%M:%S')
+
         data = hasattr(data, 'dict') and data.dict() or data
         data['LMI_SYS_PAYMENT_DATE'] = date
 

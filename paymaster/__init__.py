@@ -34,6 +34,8 @@ LOCAL = {
         'LMI_PAID_AMOUNT', 'LMI_PAID_CURRENCY', 'LMI_PAYMENT_SYSTEM',
         'LMI_SIM_MODE'
     ),
+
+    'PAYMASTER_PAYER_ENCODER_CLASS': 'paymaster.payer.PayerEncoder',
 }
 
 REQUIRED = ['PAYMASTER_PASSWORD', 'PAYMASTER_MERCHANT_ID']
@@ -54,6 +56,36 @@ class LocalSettings(object):
             raise ImproperlyConfigured(
                 'The {0} setting must not be empty. Pleaze, set it or disable '
                 'paymaster application.'.format(', '.join(REQUIRED)))
+
+        payer_class_path = self.PAYMASTER_PAYER_ENCODER_CLASS
+        from paymaster import utils
+        try:
+            Payer = utils.import_class(payer_class_path)
+            from paymaster.payer import AbstractPayerEncoder
+            if not issubclass(Payer, AbstractPayerEncoder):
+                raise ImproperlyConfigured(
+                    'The PAYMASTER_PAYER_ENCODER_CLASS must be subclass of AbstractPayer. {} is {}'.format(
+                        payer_class_path, type(Payer))
+                )
+        except (ImportError, AttributeError):
+            raise ImproperlyConfigured(
+                'The PAYMASTER_PAYER_ENCODER_CLASS must be valid path to class. {}'.format(payer_class_path)
+            )
+
+        invoice_generator_func = self.PAYMASTER_INVOICE_NUMBER_GENERATOR
+        if invoice_generator_func:
+            if isinstance(invoice_generator_func, basestring):
+                try:
+                    invoice_generator_func = utils.import_class(invoice_generator_func)
+                except (ImportError, AttributeError):
+                    raise ImproperlyConfigured(
+                        'The PAYMASTER_PAYER_ENCODER_CLASS  must be valid path to function. {}'.format(payer_class_path)
+                    )
+
+            if not callable(invoice_generator_func):
+                raise ImproperlyConfigured(
+                    'The PAYMASTER_PAYER_ENCODER_CLASS must be callable. {}'.format(payer_class_path)
+                )
 
 
 settings = LocalSettings(LOCAL, user_settings)

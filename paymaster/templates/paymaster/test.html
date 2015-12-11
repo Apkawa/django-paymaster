@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+{% for key, value in paymaster_keys.items %}
+    <pre>
+        {{ key }} = <span style="word-break: break-all">{{ value }}</span>
+    </pre>
+{% endfor %}
+<ol>
+    <li>
+        {% with view.build_invoice_confirmation_form as form %}
+            <form action="{{ form.action_url }}" method="post" target="_blank">
+                {{ form.as_p }}
+                Пользователь выбрал способ оплаты и приступил к оплате.
+                <button type="submit">INVOICE_CONFIRMATION_URL</button>
+            </form>
+        {% endwith %}
+    </li>
+    <li>
+        {% with view.build_success_form as form %}
+            <form action="{{ form.action_url }}" method="post" target="_blank">
+                {{ form.as_p }}
+                Посадочная страница успешной оплаты
+                <button type="submit">SUCCESS_URL</button>
+            </form>
+        {% endwith %}
+    </li>
+    <li>
+        {% with view.build_failure_form as form %}
+            <form action="{{ form.action_url }}" method="post" target="_blank">
+                {{ form.as_p }}
+                Посадочная страница неуспешной оплаты
+                <button type="submit">FAILURE_URL</button>
+            </form>
+        {% endwith %}
+
+    </li>
+    <li>
+
+        {% with view.build_payment_notification_form as form %}
+            <form action="{{ form.action_url }}" method="post" target="_blank">
+                {{ form.as_p }}
+                Обратный вызов после прохождения оплаты
+                <button type="submit">PAYMENT_NOTIFICATION_URL</button>
+            </form>
+        {% endwith %}
+    </li>
+</ol>
+
+<form action="{{ view.get_success_url }}" method="post">
+    {% csrf_token %}
+    <input type="submit" value="Send"/>
+</form>
+
+</body>
+</html>
