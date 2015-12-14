@@ -22,7 +22,7 @@
     </li>
     <li>
         {% with view.build_success_form as form %}
-            <form action="{{ form.action_url }}" method="post" target="_blank">
+            <form action="{{ form.action_url }}" method="get" target="_blank">
                 {{ form.as_p }}
                 Посадочная страница успешной оплаты
                 <button type="submit">SUCCESS_URL</button>
@@ -31,7 +31,7 @@
     </li>
     <li>
         {% with view.build_failure_form as form %}
-            <form action="{{ form.action_url }}" method="post" target="_blank">
+            <form action="{{ form.action_url }}" method="get" target="_blank">
                 {{ form.as_p }}
                 Посадочная страница неуспешной оплаты
                 <button type="submit">FAILURE_URL</button>

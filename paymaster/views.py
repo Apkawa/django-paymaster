@@ -76,7 +76,7 @@ class InitialView(generic.FormView):
             return self.form_invalid(form)
 
         logger.info(
-            u'User {0} redirected to {1}'.format(self.user, url)
+                u'User {0} redirected to {1}'.format(self.user, url)
         )
 
         return HttpResponseRedirect(url)
@@ -111,8 +111,8 @@ class InitialView(generic.FormView):
     def get_description(self, form):
         """ Получаем описание """
         return _(settings.PAYMASTER_DESCRIPTION_MASK).format(
-            payer=self.get_payer(),
-            number=self.get_payment_no(form)
+                payer=self.get_payer(),
+                number=self.get_payment_no(form)
         )
 
     def get_description_base64(self, form):
@@ -149,8 +149,8 @@ class InitialView(generic.FormView):
         """
         Формируем ссылку в paymaster
         """
-        get_query = self.init_query(form)
-        url = '{0}?{1}'.format(settings.PAYMASTER_INIT_URL, get_query)
+        query_data = self.init_query(form)
+        url = self._build_url(settings.PAYMASTER_INIT_URL, query_data=query_data)
         return url
 
     def get_payment_success_url(self, form):
@@ -189,8 +189,7 @@ class InitialView(generic.FormView):
         """
         return settings.PAYMASTER_PAYMENT_NOTIFICATION_URL
 
-    def init_query(self, form):
-        """ Формируем параметры GET запроса """
+    def get_query_data(self, form):
         data = {
             'LMI_MERCHANT_ID': settings.PAYMASTER_MERCHANT_ID,
             'LMI_SHOP_ID': settings.PAYMASTER_SHOP_ID,
@@ -212,14 +211,23 @@ class InitialView(generic.FormView):
         }
 
         data.update(self.get_extra_params(form))
+        return data
+
+    def init_query(self, form):
+        """ Формируем параметры GET запроса """
+        data = self.get_query_data(form)
 
         # Сигнал посылается до создания счета (счет в дельнейшем может быть
         # проигнорирован) с параметрами инициации платежа. Этот сигнал может
         # использоваться для валидации данных (raise ValidationError).
         signals.invoice_init.send(sender=self, data=data)
-
         data = {k: v for k, v in data.items() if v}
-        return urllib.urlencode(data)
+        return data
+
+    def _build_url(self, base_url, query_data):
+        query = urllib.urlencode(query_data)
+        return '?'.join([unicode(base_url), query])
+
 
 
 class ConfirmView(utils.CSRFExempt, generic.View):
@@ -272,8 +280,8 @@ class NotificationView(utils.CSRFExempt, generic.View):
     def post(self, request):
         if not self.check_hash(request.POST):  # Проверяем ключ
             logger.error(
-                u'Invoice {0} payment failed by reason: HashError'.format(
-                    request.POST.get('LMI_PAYMENT_NO')))
+                    u'Invoice {0} payment failed by reason: HashError'.format(
+                            request.POST.get('LMI_PAYMENT_NO')))
             return HttpResponse('HashError')
 
         try:
@@ -281,8 +289,8 @@ class NotificationView(utils.CSRFExempt, generic.View):
 
         except Invoice.InvoiceDuplication:
             logger.error(
-                u'Invoice {0} payment failed by reason: Duplication'.format(
-                    request.POST.get('LMI_PAYMENT_NO')))
+                    u'Invoice {0} payment failed by reason: Duplication'.format(
+                            request.POST.get('LMI_PAYMENT_NO')))
 
             return HttpResponse('InvoiceDuplicationError')
 
@@ -328,15 +336,15 @@ class FailView(utils.CSRFExempt, generic.TemplateView):
         try:
             invoice = Invoice.objects.get(number=payment_no)
             logger.info(
-                u'Invoice {0} fail page visited'.format(invoice.number))
+                    u'Invoice {0} fail page visited'.format(invoice.number))
 
         except Invoice.DoesNotExist:
             invoice = None
             logger.error(
-                u'Invoice {0} DoesNotExist'.format(payment_no))
+                    u'Invoice {0} DoesNotExist'.format(payment_no))
 
         signals.fail_visited.send(
-            sender=self, data=request.REQUEST, invoice=invoice)
+                sender=self, data=request.REQUEST, invoice=invoice)
 
         return super(FailView, self).get(request)
 
