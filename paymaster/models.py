@@ -7,7 +7,7 @@ from .managers import InvoiceManager, InvoiceDuplication
 
 class Invoice(models.Model):
     number = models.CharField(
-        _(u'Номер счета'), max_length=17, unique=True)
+        _(u'Номер счета'), max_length=128, unique=True)
     description = models.CharField(
         _(u'Назначение платежа'), max_length=256)
     amount = models.DecimalField(
