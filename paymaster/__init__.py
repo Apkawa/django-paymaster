@@ -3,6 +3,7 @@
 import logging
 from django.conf import settings as user_settings
 from django.core.exceptions import ImproperlyConfigured
+from django.core.urlresolvers import reverse_lazy
 
 LOCAL = {
     'PAYMASTER_INIT_URL': 'https://paymaster.ru/Payment/Init',
@@ -20,10 +21,10 @@ LOCAL = {
     'PAYMASTER_INVOICE_NUMBER_GENERATOR': None,
 
     'PAYMASTER_SIM_MODE': None,
-    'PAYMASTER_INVOICE_CONFIRMATION_URL': None,
-    'PAYMASTER_PAYMENT_NOTIFICATION_URL': None,
-    'PAYMASTER_SUCCESS_URL': None,
-    'PAYMASTER_FAILURE_URL': None,
+    'PAYMASTER_INVOICE_CONFIRMATION_URL': reverse_lazy('paymaster:confirm'),
+    'PAYMASTER_PAYMENT_NOTIFICATION_URL': reverse_lazy('paymaster:paid'),
+    'PAYMASTER_SUCCESS_URL': reverse_lazy('paymaster:success'),
+    'PAYMASTER_FAILURE_URL': reverse_lazy('paymaster:failure'),
 
     'PAYMASTER_USER_PHONE_FIELD': None,
     'PAYMASTER_USER_EMAIL_FIELD': None,

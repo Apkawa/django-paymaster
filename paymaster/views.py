@@ -153,6 +153,17 @@ class InitialView(generic.FormView):
         url = self._build_url(settings.PAYMASTER_INIT_URL, query_data=query_data)
         return url
 
+    def _normalize_url(self, url):
+        url = unicode(url)
+        url_parts = urlparse.urlparse(url)
+        if not url_parts.netloc:
+            hostname = self.request.META['HTTP_HOST']
+            url_parts = list(url_parts)
+            url_parts[1] = hostname
+            return urlparse.urlunparse(url_parts)
+
+        return url
+
     def get_payment_success_url(self, form):
         """
         Получаем SUCCESS_URL, ссылка может быть динамически составленой
@@ -160,7 +171,7 @@ class InitialView(generic.FormView):
         :param form:
         :return:
         """
-        return settings.PAYMASTER_SUCCESS_URL
+        return self._normalize_url(settings.PAYMASTER_SUCCESS_URL)
 
     def get_payment_failure_url(self, form):
         """
@@ -169,7 +180,7 @@ class InitialView(generic.FormView):
         :param form:
         :return:
         """
-        return settings.PAYMASTER_FAILURE_URL
+        return self._normalize_url(settings.PAYMASTER_FAILURE_URL)
 
     def get_invoice_confirmation_url(self, form):
         """
@@ -178,7 +189,7 @@ class InitialView(generic.FormView):
         :param form:
         :return:
         """
-        return settings.PAYMASTER_INVOICE_CONFIRMATION_URL
+        return self._normalize_url(settings.PAYMASTER_INVOICE_CONFIRMATION_URL)
 
     def get_payment_notification_url(self, form):
         """
@@ -187,7 +198,7 @@ class InitialView(generic.FormView):
         :param form:
         :return:
         """
-        return settings.PAYMASTER_PAYMENT_NOTIFICATION_URL
+        return self._normalize_url(settings.PAYMASTER_PAYMENT_NOTIFICATION_URL)
 
     def get_query_data(self, form):
         data = {
@@ -498,7 +509,6 @@ class FakePaymasterView(generic.TemplateView):
     def get_paymaster_data(self):
         paymaster_keys = {}
         for key, value in self.request.REQUEST.items():
-            # if key.startswith('LMI_') or key.startswith('AP_'):
             paymaster_keys[key] = value
         return paymaster_keys
 
