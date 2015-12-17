@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 from django.core.urlresolvers import reverse_lazy
+from django.db.transaction import atomic
 from django.views import generic
 from django.http import HttpResponseRedirect, HttpResponse, QueryDict
 from django.utils.translation import ugettext_lazy as _
@@ -288,8 +289,10 @@ class NotificationView(utils.CSRFExempt, generic.View):
         _hash = calculate_hash(data, hashed_fields=self._hash_fields)
         return _hash == data.get('LMI_HASH')
 
+    @atomic
     def post(self, request):
         if not self.check_hash(request.POST):  # Проверяем ключ
+            logger.debug(u'NotificationPaid error. Data: %s, hashed_fields: %s', request.POST.dict(), self._hash_fields)
             logger.error(
                     u'Invoice {0} payment failed by reason: HashError'.format(
                             request.POST.get('LMI_PAYMENT_NO')))

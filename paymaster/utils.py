@@ -11,7 +11,7 @@ from . import settings
 from . import logger
 
 
-def calculate_hash(data, hashed_fields):
+def calculate_hash(data, hashed_fields, password=settings.PAYMASTER_PASSWORD):
     _line = u';'.join(map(str, [data.get(key) for key in hashed_fields]))
     _line += u';{0}'.format(settings.PAYMASTER_PASSWORD)
     hash_method = settings.PAYMASTER_HASH_METHOD
