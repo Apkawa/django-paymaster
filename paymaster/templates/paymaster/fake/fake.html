@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+{% load jsontag %}
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="robots" content="noindex">
+    <title>Paymaster</title>
+
+    <script src="https://paymaster.ru/Scripts/jquery.bundle.js?v=lXYQaoW1fQf7h7Hk-IGNsm3064dHRT3UBm8W4TYtILs1"></script>
+
+    <link href="https://paymaster.ru/Content/css/pp.bundle.css?v=om0U0PirOCpG0rZ6XrVWz2ZQIGv9JMqYxJZxfbjj7B81"
+          rel="stylesheet"/>
+
+    <!--[if IE]>
+            <link rel="stylesheet" href="/Content/css/pp-ie.css" media="all"/>
+        <![endif]-->
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://paymaster.ru//Content/css/fancy.bundle.css?v=CkmgL0vzXaDPt6Ms5nCjSu3kEzqGEWXIB8DzIB3bGHE1"
+          rel="stylesheet"/>
+    <script>
+        function clone(obj) {
+            if (null == obj || "object" != typeof obj) return obj;
+            var copy = obj.constructor();
+            for (var attr in obj) {
+                if (obj.hasOwnProperty(attr)) copy[attr] = obj[attr];
+            }
+            return copy;
+        }
+
+        var invoice_confirmation = {{ view.get_invoice_confirmation_data|json }};
+        var payment_notification = {{ view.get_payment_notification_data|json }};
+
+        var WaitBeforeReturn = 10;
+        function SetCirclePerc(n, t) {
+            t < 0 && (t = 0);
+            t > 100 && (t = 100);
+            t <= 50 ? n.children(".circleMask2").addClass("circleMask1").removeClass("circleMask2") : n.children(".circleMask1").addClass("circleMask2").removeClass("circleMask1");
+            var i = "rotate(" + (t * 3.6 - 135) + "deg)";
+            n.children(":not(.circleBase)").css("transform", i).css("-moz-transform", i).css("-webkit-transform", i)
+        }
+
+        function redirectStage(func, level) {
+            level = level || 'warning';
+            $('#stage-2').hide();
+            var $spinner = $("#spinner").show();
+            $spinner.removeClass("pp-warning")
+                    .removeClass("pp-success")
+                    .removeClass("pp-error")
+                    .addClass("pp-" + level);
+            var n = $spinner.find('.circleContainer');
+
+            var t = 0;
+            window.setTimeout(func, WaitBeforeReturn * 1000);
+            window.setInterval(function () {
+                SetCirclePerc(n, Math.min(++t * 10 / WaitBeforeReturn, 100))
+            }, 100)
+        }
+
+        $(function () {
+            var invoice_confirmation_data = clone(invoice_confirmation);
+            invoice_confirmation_data.success = function () {
+                $('#stage-1').hide();
+                $('#stage-2, div.card-box').show();
+            };
+            invoice_confirmation_data.error = function () {
+            };
+
+            $.ajax(invoice_confirmation_data);
+            $('#cancel').on('click', function () {
+                $('#failure-stage').show();
+                redirectStage(function () {
+                    $("#failure_form").submit();
+                })
+            });
+            $("#proceed").on('click', function () {
+                $('#stage-1').show();
+                $('#stage-2').hide();
+                var payment_notification_data = clone(payment_notification);
+                payment_notification_data.success = function () {
+                    $('#stage-1').hide();
+                    $('#success-stage').show();
+                    redirectStage(function () {
+                        $("#success_form").submit();
+                    }, 'success')
+                };
+                payment_notification_data.error = function () {
+                    $('#failure-stage').show();
+                    $('#stage-1').hide();
+                    redirectStage(function () {
+                        $("#failure_form").submit();
+                    }, 'error')
+                };
+                $.ajax(payment_notification_data)
+
+            })
+
+        })
+    </script>
+
+</head>
+<body>
+<div class="pp-viewport">
+    <div class="pp-header pp-rounded-10px pp-clearfix">
+        <a href="/" class="pp-logo" target="_blank">
+            <div class="logo-img ru">
+            </div>
+        </a>
+        <ul class="pp-langs">
+            <li><a href="javascript://">
+                <img src="https://paymaster.ru//Content/images/lang-ru-24.png" alt=""/></a>
+                <ul>
+                    <li><a href="#">
+                        <img src="https://paymaster.ru//Content/images/lang-en-24.png" alt=""/></a></li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+
+    <h2 class="pp-type-header" id="headerPayment">
+        Способ оплаты&nbsp;&#8212;
+        <br/>
+        <a id="ps">Банковская карта<i></i></a>
+
+        <ul class="pp-security-banners">
+            <li><a class="attestat pp-header-banner"><img src="https://paymaster.ru//content/img/visa.png"/></a></li>
+            <li><a class="attestat pp-header-banner"><img src="https://paymaster.ru//content/img/mastercard.png"/></a>
+            </li>
+        </ul>
+        <ul class="pp-forms" id="requisites">
+            <li class="pp-form pp-clearfix pp-merchant-param">
+                <label>
+                    Получатель:</label>
+                <div class="pp-param">
+                    Эмулятор Paymaster.ru
+                </div>
+            </li>
+            <li class="pp-form pp-clearfix pp-desc-param">
+                <label>
+                    Описание:</label>
+                <div class="pp-param">
+                    {{ description }}
+                </div>
+            </li>
+            <li class="pp-form pp-clearfix pp-invoice-param">
+                <label>
+                    Номер счета:</label>
+                <div class="pp-param">
+                    {{ number }}
+                </div>
+            </li>
+            <li class="pp-form pp-clearfix pp-amount-param">
+                <label>
+                    Стоимость:</label>
+                <div>
+                    <b class="pp-total">
+
+                        {{ amount }} RUB
+
+                    </b>&nbsp;<label>
+                </label>
+                </div>
+            </li>
+        </ul>
+        <div class="card-box" style="display: none">
+            <div class="card-form">
+                <ul class="pp-forms">
+                    <li class="pp-form pp-clearfix requisite" id="lirequisite_cardPan"><label
+                            for="pp-vaucher-numper">Номер карты<sup
+                            style="color:#e00;line-height: 1;">*</sup>:</label>
+                        <div><input data-num="0" type="tel" name="card_pan" data-regex="^\d{16,19}$"
+                                    class="pp-input-text-medium card_pan" data-req="true" data-private="true"
+                                    data-mask="9999 9999 9999 9999999" autocomplete="off" id="cardNumber"
+                                    maxlength="22">
+                            <div></div>
+                        </div>
+                    </li>
+                    <li class="pp-form pp-clearfix requisite" id="lirequisite_cardExpiry"><label
+                            for="pp-vaucher-numper">Срок действия до<sup
+                            style="color:#e00;line-height: 1;">*</sup>:</label>
+                        <div><select data-num="1" class="pp-input-text-small card_month" autocomplete="cc-exp-month"
+                                     data-req="true" name="card_month" id="cardExpirationMonth">
+                            <option value="">ММ</option>
+                            <option value="1">01</option>
+                            <option value="2">02</option>
+                            <option value="3">03</option>
+                            <option value="4">04</option>
+                            <option value="5">05</option>
+                            <option value="6">06</option>
+                            <option value="7">07</option>
+                            <option value="8">08</option>
+                            <option value="9">09</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>/<select data-num="2" class="pp-input-text-small card_year"
+                                          autocomplete="cc-exp-year" data-req="true" name="card_year"
+                                          id="cardExpirationYear">
+                            <option value="">ГГ</option>
+                            <option value="2016">2016</option>
+                            <option value="2017">2017</option>
+                            <option value="2018">2018</option>
+                            <option value="2019">2019</option>
+                            <option value="2020">2020</option>
+                            <option value="2021">2021</option>
+                            <option value="2022">2022</option>
+                            <option value="2023">2023</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select></div>
+                    </li>
+                    <li class="pp-form pp-clearfix requisite" id="lirequisite_cardCvv"><label
+                            for="pp-vaucher-numper">CVV/CVC<sup style="color:#e00;line-height: 1;">*</sup>:</label>
+                        <div><input data-num="3" pattern="[0-9]*" inputmode="numeric" type="tel" name="card_cvv"
+                                    id="requisite_card_cvv" data-regex="^\d{3,3}$"
+                                    class="pp-input-text-medium card_cvv" data-req="true" data-private="true"
+                                    data-mask="999" maxlength="3" autocomplete="off">
+                            <div></div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-sample">
+                <div class="card-hint" style="top: 63px; left: 8px; width: 187px; height: 20px; display: none;">
+                    <div></div>
+                </div>
+                <div class="card-img"></div>
+            </div>
+            <p class="pp-form-legend" id="reqLegend">
+                <b style="color: #e00">*</b>&nbsp;—&nbsp;Обязательно к заполнению.
+            </p>
+        </div>
+
+        <div id='stage-1' class="pp-message pp-inprogress pp-rounded-10px">
+            <p>
+                Ваш платеж обрабатывается, пожалуйста, подождите.
+            </p>
+        </div>
+
+        <div class="pp-message pp-rounded-10px requisite pp-warning" id="spinner" style="display: none">
+            <div class="circleContainer">
+                <div class="circleBase"></div>
+                <div class="circleMask2" style="transform: rotate(0deg);"></div>
+            </div>
+            <h3></h3>
+            <p>Пожалуйста, нажмите 'Вернуться в магазин', чтобы вернуться на сайт 'Услуги
+                24 — делаем жизнь проще'</p>
+        </div>
+
+        <div class="pp-buttons pp-clearfix" id="stage-2" style="display: none">
+            <button class="pp-button-ok pp-rounded-5px" type="button" id="proceed">
+                Далее
+            </button>
+            <div class="pp-cancel" id="cancel">
+                <a href="javascript://">Отказаться от оплаты</a>и вернуться в магазин
+            </div>
+        </div>
+        <div class="pp-buttons pp-clearfix" id="success-stage" style="display: none">
+            {% with view.build_success_form as form %}
+                <form id="success_form" action="{{ form.action_url }}" method="get">
+                    {{ form.as_p }}
+                    <button class="pp-button-ok pp-rounded-5px" type="submit" id="returnToMerchant">
+                        Вернуться в магазин
+                    </button>
+                </form>
+            {% endwith %}
+        </div>
+
+        <div class="pp-buttons pp-clearfix" id="failure-stage" style="display: none">
+            {% with view.build_failure_form as form %}
+                <form id="failure_form" action="{{ form.action_url }}" method="get">
+                    {{ form.as_p }}
+                    <button class="pp-button-ok pp-rounded-5px" type="submit" id="returnToMerchant">
+                        Вернуться в магазин
+                    </button>
+                </form>
+            {% endwith %}
+        </div>
+
+        <div class="pp-buttons pp-clearfix" id="buttonsBar" style="display: none">
+            <button class="pp-button-ok pp-rounded-5px" type="button" id="proceed" style="display: none">
+                Далее
+            </button>
+            <button class="pp-button-ok pp-rounded-5px" type="button" id="proceedRedirect" style="display: none">
+                Далее
+            </button>
+            <button class="pp-button-back pp-rounded-5px" type="button" id="back" style="display: none">
+                Назад
+            </button>
+            <button class="pp-button-ok pp-rounded-5px" type="button" id="returnToMerchant" style="display: none">
+                Вернуться в магазин
+            </button>
+            <div class="pp-cancel" id="cancel" style="display: none">
+                <a href="javascript://">Отказаться от оплаты</a>и вернуться в магазин
+            </div>
+        </div>
+        <div class="bottom_msg">
+            This page is PCI DSS compliant
+        </div>
+
+        <div class="pp-footer">
+            <div class="pp-footer-logos">
+                <a href="http://www.kkb.ru" target="_blank"><img src="https://paymaster.ru//Content/images/kkb.png"
+                                                                 alt="Консервативный Коммерческий Банк"></a><img
+                    src="https://paymaster.ru//Content/images/pcidss.png" alt="PCI DSS ">
+            </div>
+            <div class="pp-copyrights">
+                ©&nbsp;2010–2016
+                &nbsp;PayMaster
+            </div>
+
+            <div class="pp-contacts">
+                <a href="#support" id="supportLink">Написать в техподдержку</a>
+            </div>
+
+        </div>
+</div>
+</body>
+</html>

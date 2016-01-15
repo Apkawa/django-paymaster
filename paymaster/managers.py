@@ -3,7 +3,6 @@
 from datetime import datetime
 from django.db import models
 
-
 API_MAP = {
     'LMI_PAYMENT_NO': 'number',
     'LMI_PAYMENT_DESC': 'description',
@@ -27,6 +26,8 @@ class InvoiceDuplication(Exception):
 class InvoiceManager(models.Manager):
     def create_from_api(self, data):
         _d = {mkey: data.get(akey) for akey, mkey in API_MAP.items()}
+        if self.filter(number=_d['number']).exists():
+            return None
         return self.create(**_d)
 
     def finalize(self, data):

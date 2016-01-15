@@ -11,24 +11,22 @@
 
 import base64
 import urllib
-import hashlib
 import urlparse
 from datetime import datetime, timedelta
-from uuid import uuid4
 
-from django.core.urlresolvers import reverse_lazy
+from django.core.exceptions import ValidationError
 from django.db.transaction import atomic
-from django.views import generic
 from django.http import HttpResponseRedirect, HttpResponse, QueryDict
 from django.utils.translation import ugettext_lazy as _
-from django.core.exceptions import ValidationError
-from paymaster.utils import calculate_hash, format_dt
-from .models import Invoice
+from django.views import generic
+
+from paymaster.utils import calculate_hash
+from . import forms
+from . import logger
 from . import settings
 from . import signals
-from . import logger
 from . import utils
-from . import forms
+from .models import Invoice
 
 PayerEncoder = utils.import_class(settings.PAYMASTER_PAYER_ENCODER_CLASS)()
 
@@ -262,10 +260,11 @@ class ConfirmView(utils.CSRFExempt, generic.View):
     def post(self, request):
         # Создание счета в БД продавца
         invoice = Invoice.objects.create_from_api(request.POST)
-        logger.info(u'Invoice {0} payment confirm.'.format(invoice.number))
-        payer = PayerEncoder.decode(self.request.REQUEST.get('LOC_PAYER_ID'))
-        # Отправка сигнал подтверждения счета.
-        signals.invoice_confirm.send(sender=self, payer=payer, invoice=invoice)
+        if invoice:
+            logger.info(u'Invoice {0} payment confirm.'.format(invoice.number))
+            payer = PayerEncoder.decode(self.request.REQUEST.get('LOC_PAYER_ID'))
+            # Отправка сигнал подтверждения счета.
+            signals.invoice_confirm.send(sender=self, payer=payer, invoice=invoice)
         return HttpResponse('YES', content_type='text/plain')
 
 
@@ -366,158 +365,3 @@ class FailView(utils.CSRFExempt, generic.TemplateView):
         return self.get(request)
 
 
-class FakePaymasterView(generic.TemplateView):
-    """
-    Страница для тестирования оплат без использования paymaster
-    """
-    template_name = 'paymaster/test.html'
-
-    fallback_urls = {
-        'SUCCESS_URL': reverse_lazy('paymaster:success'),
-        'FAILURE_URL': reverse_lazy('paymaster:fail'),
-        'INVOICE_CONFIRMATION_URL': reverse_lazy('paymaster:confirm'),
-        'PAYMENT_NOTIFICATION_URL': reverse_lazy('paymaster:paid'),
-    }
-
-    def _get_configured_url(self, request, url_name):
-        req_data = request.REQUEST
-        return (
-            req_data.get('LMI_' + url_name)
-            or getattr(settings, 'PAYMASTER_' + url_name)
-            or self.fallback_urls[url_name]
-        )
-
-    def _build_url(self, base_url, query_kw=None):
-        query_kw = query_kw or {}
-        url_parts = urlparse.urlparse(base_url)
-        query = dict(urlparse.parse_qsl(url_parts.query))
-        query.update(query_kw)
-
-        url_parts = list(url_parts)
-        url_parts[4] = urllib.urlencode(query)
-        return urlparse.urlunparse(url_parts)
-
-    def _build_form(self, url, data, paymaster_keys):
-        for key in data.keys():
-            if key.startswith('LMI_') and key not in paymaster_keys:
-                del data[key]
-
-        form = forms.DictForm(_dict=data)
-        form.action_url = self._build_url(url)
-        return form
-
-    def build_failure_form(self):
-        url = self._get_configured_url(self.request, 'FAILURE_URL')
-
-        paymaster_data = self.get_paymaster_data()
-        paymaster_data['LMI_SYS_PAYMENT_ID'] = self.sys_payment_id
-        paymaster_data['LMI_SYS_PAYMENT_DATE'] = self.sys_payment_date
-
-        fields = (
-            'LMI_MERCHANT_ID',
-            'LMI_PAYMENT_NO',
-            'LMI_SYS_PAYMENT_ID',
-            'LMI_SYS_PAYMENT_DATE',
-            'LMI_PAYMENT_AMOUNT',
-            'LMI_CURRENCY',
-        )
-        return self._build_form(url, paymaster_data, fields)
-
-    def build_success_form(self):
-        url = self._get_configured_url(self.request, 'SUCCESS_URL')
-        paymaster_data = self.get_paymaster_data()
-
-        fields = (
-            'LMI_MERCHANT_ID',
-            'LMI_PAYMENT_NO',
-            'LMI_PAYMENT_AMOUNT',
-            'LMI_CURRENCY',
-        )
-
-        return self._build_form(url, paymaster_data, fields)
-
-    def build_invoice_confirmation_form(self):
-        url = self._get_configured_url(self.request, 'INVOICE_CONFIRMATION_URL')
-        fields = (
-            'LMI_PREREQUEST',
-            'LMI_MERCHANT_ID',
-            'LMI_PAYMENT_NO',
-            'LMI_PAYMENT_AMOUNT',
-            'LMI_CURRENCY',
-            'LMI_PAID_AMOUNT',
-            'LMI_PAID_CURRENCY',
-            'LMI_PAYMENT_SYSTEM',
-            'LMI_PAYMENT_METHOD',
-            'LMI_SIM_MODE',
-            'LMI_PAYMENT_DESC',
-            'LMI_SHOP_ID',
-        )
-        paymaster_data = self.get_paymaster_data()
-        paymaster_data['LMI_PREREQUEST'] = 1
-        paymaster_data['LMI_PAID_CURRENCY'] = paymaster_data['LMI_CURRENCY']
-        paymaster_data['LMI_PAID_AMOUNT'] = paymaster_data['LMI_PAYMENT_AMOUNT']
-        paymaster_data['LMI_PAYMENT_SYSTEM'] = paymaster_data.get('LMI_PAYMENT_SYSTEM', 'WebMoney')
-
-        paymaster_data['LMI_PAYMENT_DESC'] = (
-            paymaster_data.get('LMI_PAYMENT_DESC')
-            or base64.decodestring(paymaster_data['LMI_PAYMENT_DESC_BASE64'])
-        )
-
-        return self._build_form(url, paymaster_data, fields)
-
-    def build_payment_notification_form(self):
-        fields = (
-            'LMI_MERCHANT_ID',
-            'LMI_PAYMENT_NO',
-            'LMI_PAYMENT_AMOUNT',
-            'LMI_CURRENCY',
-            'LMI_PAYMENT_SYSTEM',
-            'LMI_PAYMENT_METHOD',
-            'LMI_PAYMENT_DESC',
-            'LMI_SHOP_ID',
-
-            'LMI_SIM_MODE',
-            'LMI_HASH',
-            'LMI_PAYER_IDENTIFIER',
-            'LMI_PAYER_COUNTRY',
-            'LMI_PAYER_PASSPORT_COUNTRY',
-            'LMI_PAYER_IP_ADDRESS',
-            'LMI_PAID_AMOUNT',
-            'LMI_PAID_CURRENCY',
-            'LMI_SYS_PAYMENT_ID',
-            'LMI_SYS_PAYMENT_DATE',
-
-        )
-        url = self._get_configured_url(self.request, 'PAYMENT_NOTIFICATION_URL')
-        paymaster_data = self.get_paymaster_data()
-        paymaster_data['LMI_SIM_MODE'] = paymaster_data.get('LMI_SIM_MODE', 0)
-        paymaster_data['LMI_PAYMENT_DESC'] = (
-            paymaster_data.get('LMI_PAYMENT_DESC')
-            or base64.decodestring(paymaster_data['LMI_PAYMENT_DESC_BASE64'])
-        )
-        paymaster_data['LMI_PAID_CURRENCY'] = paymaster_data['LMI_CURRENCY']
-        paymaster_data['LMI_PAID_AMOUNT'] = paymaster_data['LMI_PAYMENT_AMOUNT']
-        paymaster_data['LMI_SYS_PAYMENT_ID'] = self.sys_payment_id
-        paymaster_data['LMI_SYS_PAYMENT_DATE'] = self.sys_payment_date
-        paymaster_data['LMI_PAYER_IDENTIFIER'] = 'test-payer'
-        paymaster_data['LMI_PAYMENT_SYSTEM'] = paymaster_data.get('LMI_PAYMENT_SYSTEM', 'WebMoney')
-
-        paymaster_data['LMI_PAYER_COUNTRY'] = paymaster_data['LMI_PAYER_PASSPORT_COUNTRY'] = 'RU'
-        paymaster_data['LMI_PAYER_IP_ADDRESS'] = '127.0.0.1'
-
-        paymaster_data['LMI_HASH'] = calculate_hash(paymaster_data, settings.PAYMASTER_HASH_FIELDS)
-
-        return self._build_form(url, paymaster_data, fields)
-
-    def get_paymaster_data(self):
-        paymaster_keys = {}
-        for key, value in self.request.REQUEST.items():
-            paymaster_keys[key] = value
-        return paymaster_keys
-
-    def get_context_data(self, **kwargs):
-        context = super(FakePaymasterView, self).get_context_data()
-        context['paymaster_keys'] = self.get_paymaster_data()
-        self.sys_payment_id = str(uuid4())
-        self.sys_payment_date = format_dt(datetime.now())
-        return context

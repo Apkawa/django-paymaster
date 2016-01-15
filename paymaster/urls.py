@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from django.conf.urls import patterns, url
+
+from . import fake_views
+
 from . import views
 from . import forms
 from . import settings
@@ -24,5 +27,6 @@ urlpatterns = patterns('',
 
 if settings.DEBUG:
     urlpatterns += patterns('',
-        url('^test/', views.FakePaymasterView.as_view(), name='test')
+        url('^test/', fake_views.TestPaymasterView.as_view(), name='test'),
+        url('^fake/', fake_views.FakePaymasterView.as_view(), name='fake'),
     )
