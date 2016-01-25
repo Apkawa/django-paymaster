@@ -1,3 +1,7 @@
 django>=1.8,<1.9
 simple_crypt
 pytz
+
+requests
+
+dateutil

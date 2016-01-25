@@ -10,6 +10,10 @@ LOCAL = {
 
     'PAYMASTER_LOGIN': None,
     'PAYMASTER_PASSWORD': None,
+    'PAYMASTER_API_AUTH': {
+        'LOGIN': None,
+        'PASSWORD': None
+    },
     'PAYMASTER_MERCHANT_ID': None,
     'PAYMASTER_SHOP_ID': None,
     'PAYMASTER_HASH_METHOD': 'md5',

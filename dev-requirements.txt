@@ -1,4 +1,10 @@
+mock
 -r ./requirements.txt
+
+pytest==2.8.5
+pytest-django
+pytest-pythonpath
+
 
 django-coverage
 django-debug-toolbar
