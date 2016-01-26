@@ -12,8 +12,8 @@ from . import logger
 
 
 def calculate_hash(data, hashed_fields, password=settings.PAYMASTER_PASSWORD, hash_method=None):
-    _line = u';'.join(map(str, [data.get(key) for key in hashed_fields]))
-    _line += u';{0}'.format(settings.PAYMASTER_PASSWORD)
+    _line = u';'.join(map(str, [data.get(key) or '' for key in hashed_fields]))
+    _line += u';{0}'.format(password)
     hash_method = hash_method or settings.PAYMASTER_HASH_METHOD
     _hash = getattr(hashlib, hash_method)(_line.encode('utf-8'))
     _hash = base64.encodestring(_hash.digest()).replace('\n', '')
