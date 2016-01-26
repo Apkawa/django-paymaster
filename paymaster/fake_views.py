@@ -151,7 +151,7 @@ class FakePaymasterMixinView(object):
 
         )
         paymaster_data = self.get_paymaster_data()
-        paymaster_data['LMI_SIM_MODE'] = paymaster_data.get('LMI_SIM_MODE', 0)
+        paymaster_data['LMI_SIM_MODE'] = paymaster_data.get('LMI_SIM_MODE', None)
         paymaster_data['LMI_PAYMENT_DESC'] = (
             paymaster_data.get('LMI_PAYMENT_DESC')
             or base64.decodestring(paymaster_data['LMI_PAYMENT_DESC_BASE64'])
