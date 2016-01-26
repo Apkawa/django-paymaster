@@ -295,7 +295,8 @@ class NotificationView(utils.CSRFExempt, generic.View):
             logger.error(
                     u'Invoice {0} payment failed by reason: HashError'.format(
                             request.POST.get('LMI_PAYMENT_NO')))
-            return HttpResponse('HashError')
+
+            return HttpResponse('HashError', status=settings.PAYMASTER_HASH_FAIL_HTTP_CODE)
 
         try:
             invoice = Invoice.objects.finalize(request.POST)  # Закрываем счет
