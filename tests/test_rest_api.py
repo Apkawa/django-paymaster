@@ -63,3 +63,5 @@ class ApiTest(TestCase):
     def test_cancel_payment(self):
         result = self.client.cancel_payment(self.payment_id)
         assert result
+
+

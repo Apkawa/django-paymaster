@@ -77,7 +77,7 @@ PaymentState = namedtuple('PaymentState', [
 
 INVOICE_REJECTED = -8
 
-ErrorCode = {
+ERROR_CODE_MAP = {
     -1: 'Неизвестная ошибка',
     -2: 'Неизвестная сетевая ошибка',
     -5: 'Сетевая ошибка платежной системы',
