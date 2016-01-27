@@ -29,20 +29,22 @@ class ApiTest(TestCase):
     def setUp(self):
         PaymasterApiClient._gen_nonce = mock.MagicMock(return_value='ttt')
         self.client = PaymasterApiClient(login='TestLogin')
-        self.payment_id = '42374208'
-        self.invoice_id = '41056-20160112-6769f49f'
+        self.payment_id = '43149010'
+        self.invoice_id = '43636-20160125-14968c91'
 
     def test_get_payment(self):
         result = self.client.get_payment(self.payment_id)
         assert result
 
     def test_get_payment_by_invoice_id(self):
-        result = self.client.get_payment_by_invoice_id(self.invoice_id)
+        result = self.client.get_payment_by_invoice_id(
+                self.invoice_id,
+                merchant_id=settings.PAYMASTER_MERCHANT_ID,
+        )
         assert result
 
     def test_get_payments(self):
         result = self.client.get_payments(
-                merchant_id=settings.PAYMASTER_MERCHANT_ID,
                 period_from='2016-01-01',
                 period_to='2016-01-25',
         )

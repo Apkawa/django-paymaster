@@ -8,6 +8,23 @@ from .rest_api.client import ERROR_CODE_MAP
 
 
 class Invoice(models.Model):
+    STATUS_NEW = "NEW"
+    STATUS_INITIATED = "INITIATED"
+    STATUS_PROCESSING = "PROCESSING"
+    STATUS_COMPLETE = "COMPLETE"
+    STATUS_CANCELLED = "CANCELLED"
+
+    COMPLETED_STATES = [STATUS_COMPLETE, STATUS_CANCELLED]
+
+    STATUS_CHOICES = (
+        (STATUS_NEW, u'платеж создан'),
+        (STATUS_INITIATED, u'платеж начат'),
+        (STATUS_PROCESSING, u'платеж проводится'),
+        (STATUS_COMPLETE, u'платеж завершен успешно'),
+        (STATUS_CANCELLED, u'платеж завершен неуспешно'),
+    )
+    status = models.CharField(u'состояние платежа', max_length=25, choices=STATUS_CHOICES, default=STATUS_NEW)
+
     number = models.CharField(
             _(u'Номер счета'), max_length=128, unique=True)
     description = models.CharField(
@@ -59,6 +76,15 @@ class Invoice(models.Model):
     class Meta:
         verbose_name = _(u'Счет')
         verbose_name_plural = _(u'Счета')
+
+    def is_finish(self):
+        return self.status in self.COMPLETED_STATES
+
+    def is_process(self):
+        return not self.is_finish()
+
+    def is_complete(self):
+        return self.status == self.STATUS_COMPLETE
 
 
 class Refund(models.Model):

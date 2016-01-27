@@ -109,10 +109,11 @@ class PaymasterApiClient(APIClient):
 
     PaymentState = PaymentState
 
-    def __init__(self, login=None, password=None):
+    def __init__(self, login=None, password=None, merchant_id=None):
         auth = settings.PAYMASTER_API_AUTH
         self.login = login or auth['LOGIN']
         self.password = password or auth['PASSWORD']
+        self.merchant_id = merchant_id or settings.PAYMASTER_MERCHANT_ID
 
     def _handle_error(self, response):
         super(PaymasterApiClient, self)._handle_error(response)
@@ -230,7 +231,7 @@ class PaymasterApiClient(APIClient):
         """
         params = OrderedDict((
             ('invoiceID', invoice_id),
-            ('siteAlias', merchant_id),
+            ('siteAlias', merchant_id or self.merchant_id),
         ))
         params = self._auth_params(params, fields=params.keys())
         response = self._get('getPaymentByInvoiceID', params=params)

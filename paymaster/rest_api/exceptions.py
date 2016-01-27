@@ -1,13 +1,18 @@
 # coding: utf-8
 from __future__ import unicode_literals
 
+from django.utils.encoding import smart_str
+
 
 class APIError(Exception):
     message = 'Неизвестная ошибка. Сбой в системе PayMaster. Если ошибка повторяется, обратитесь в техподдержку.'
     code = -1
 
-    def __str__(self):
+    def __unicode__(self):
         return "({self.code}) {self.message}".format(self=self)
+
+    def __str__(self):
+        return smart_str(self.__unicode__())
 
 
 class NetworkError(APIError):

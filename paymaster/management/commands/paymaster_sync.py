@@ -10,8 +10,21 @@ from django.db.transaction import atomic
 from paymaster.models import Refund, Invoice
 
 from paymaster.rest_api.client import PaymasterApiClient
-from paymaster.signals import refund_created, refund_failure, refund_success
+from paymaster.signals import refund_created, refund_failure, refund_success, invoice_paid
 
+API_MAP = {
+    'SiteInvoiceID': 'number',
+    'Purpose': 'description',
+    'Amount': 'amount',
+    'CurrencyCode': 'currency',
+    'PaymentAmount': 'paid_amount',
+    'PaymentCurrencyCode': 'paid_currency',
+    'PaymentSystemID': 'payment_system',
+    'PaymentMethod': 'payment_method',
+    'PaymentID': 'payment_id',
+    'LastUpdateTime': 'payment_date',
+    'UserIdentifier': 'payer_id',
+}
 
 class Command(BaseCommand):
     help = "Синхронизация оплат и возвратов"
@@ -28,8 +41,36 @@ class Command(BaseCommand):
 
     @atomic
     def update_payment(self, payment_data):
-        # TODO
-        pass
+        print payment_data
+
+        update_data = {
+            'status': payment_data['State'],
+        }
+
+        try:
+            invoice = Invoice.objects.get(number=payment_data['SiteInvoiceID'])
+        except Invoice.DoesNotExist:
+            print "Not Found"
+            return None
+
+        if invoice.is_finish():
+            # Закрытые счета не обновляем
+            print "Already Close"
+            return None
+
+        if update_data['status'] == Invoice.STATUS_COMPLETE:
+            # Если комплит - то мы проставляем оплату
+            for f_key, t_key in API_MAP.items():
+                update_data[t_key] = payment_data[f_key]
+
+        for key, value in update_data.items():
+            setattr(invoice, key, value)
+
+        invoice.save()
+        if invoice.is_complete():
+            print "SUCCESS"
+            invoice_paid.send(sender=self, payer=None, invoice=invoice)
+
 
     @atomic
     def update_refund(self, refund_data):
@@ -96,11 +137,22 @@ class Command(BaseCommand):
                     refund=refund_obj
             )
 
+    def sync_open_invoices(self):
+        client = PaymasterApiClient()
+        open_invoices = Invoice.objects.incompleted()
+        for invoice in open_invoices:
+            invoice_data = client.get_payment_by_invoice_id(invoice.number)
+            # Тупейший баг
+            invoice_data['SiteInvoiceID'] = invoice.number
+
+            self.update_payment(invoice_data)
+
+
     def sync_refund(self):
         client = PaymasterApiClient()
 
         for row in client.list_refunds(
-                period_from=datetime.datetime.now() - datetime.timedelta(days=1))['Refunds']:
+                period_from=datetime.datetime.now() - datetime.timedelta(days=3))['Refunds']:
             self.update_refund(row)
 
     def handle(self, **options):
@@ -113,6 +165,7 @@ class Command(BaseCommand):
         # requests_log.setLevel(logging.DEBUG)
         # requests_log.propagate = True
 
+        self.sync_open_invoices()
         self.sync_refund()
 
         while options.get('loop'):

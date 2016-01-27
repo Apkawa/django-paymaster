@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from django.db import models
+from django.db.transaction import atomic
 
 API_MAP = {
     'LMI_PAYMENT_NO': 'number',
@@ -30,6 +31,9 @@ class InvoiceManager(models.Manager):
             return None
         return self.create(**_d)
 
+    def incompleted(self):
+        return self.exclude(status__in=self.model.COMPLETED_STATES)
+
     def finalize(self, data):
         invoice = self.get(number=data['LMI_PAYMENT_NO'])
 
@@ -44,6 +48,8 @@ class InvoiceManager(models.Manager):
 
         for akey, mkey in API_MAP.items():
             setattr(invoice, mkey, data.get(akey))
+
+        invoice.status = invoice.STATUS_COMPLETE
 
         invoice.save()
         return invoice
