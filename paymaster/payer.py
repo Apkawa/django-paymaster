@@ -30,9 +30,15 @@ class AbstractPayerEncoder(object):
     def deserialize_data(self, serialized_data):
         return json.loads(serialized_data)
 
+    def decrypt(self, enc):
+        return decrypt(settings.SECRET_KEY, base64.decodestring(enc))
+
+    def encrypt(self, data):
+        return encrypt(settings.SECRET_KEY, self.serialize_data(data))
+
     def decode_data(self, enc):
         try:
-            data = decrypt(settings.SECRET_KEY, base64.decodestring(enc))
+            data = self.decrypt(enc)
             return self.deserialize_data(data)
         except DecryptionException:
             logger.warn(u'Payer decryption error')
@@ -41,8 +47,8 @@ class AbstractPayerEncoder(object):
             logger.warn(u'Payer does not exist')
 
     def encode_data(self, data):
-        secret = encrypt(settings.SECRET_KEY, self.serialize_data(data))
-        return base64.encodestring(secret)
+        secret = self.encrypt(data)
+        return base64.encodestring(secret).strip()
 
     def encode(self, *args, **kwargs):
         raise NotImplemented()
