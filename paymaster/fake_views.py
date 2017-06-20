@@ -65,8 +65,6 @@ class FakePaymasterMixinView(object):
         fields = (
             'LMI_MERCHANT_ID',
             'LMI_PAYMENT_NO',
-            'LMI_SYS_PAYMENT_ID',
-            'LMI_SYS_PAYMENT_DATE',
             'LMI_PAYMENT_AMOUNT',
             'LMI_CURRENCY',
         )
@@ -81,6 +79,8 @@ class FakePaymasterMixinView(object):
 
         fields = (
             'LMI_MERCHANT_ID',
+            'LMI_SYS_PAYMENT_ID',
+            'LMI_SYS_PAYMENT_DATE',
             'LMI_PAYMENT_NO',
             'LMI_PAYMENT_AMOUNT',
             'LMI_CURRENCY',
@@ -219,7 +219,11 @@ class FakePaymasterView(FakePaymasterMixinView, generic.TemplateView):
         context = super(FakePaymasterMixinView, self).get_context_data()
         paymaster_data = self.get_paymaster_data()
         context['paymaster_keys'] = paymaster_data
-        context['description'] = base64.decodestring(paymaster_data[u'LMI_PAYMENT_DESC_BASE64'])
+        context['description'] = ''
+        try:
+            context['description'] = paymaster_data.get('LMI_PAYMENT_DESC') or base64.decodestring(paymaster_data['LMI_PAYMENT_DESC_BASE64'])
+        except KeyError:
+            pass
         context['number'] = paymaster_data[u'LMI_PAYMENT_NO']
         context['amount'] = paymaster_data[u'LMI_PAYMENT_AMOUNT']
         return context
