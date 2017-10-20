@@ -2,7 +2,11 @@
 
 from __future__ import unicode_literals
 
-import httplib
+try:
+    from httplib import HTTPConnection
+except ImportError:
+    from http.client import HTTPConnection
+
 import logging
 from unittest import TestCase
 
@@ -17,7 +21,7 @@ from paymaster.rest_api.client import PaymasterApiClient
 
 
 def log_requests():
-    httplib.HTTPConnection.debuglevel = 1
+    HTTPConnection.debuglevel = 1
     logging.basicConfig()  # you need to initialize logging, otherwise you will not see anything from requests
     logging.getLogger().setLevel(logging.DEBUG)
     requests_log = logging.getLogger("requests")
@@ -38,15 +42,15 @@ class ApiTest(TestCase):
 
     def test_get_payment_by_invoice_id(self):
         result = self.client.get_payment_by_invoice_id(
-                self.invoice_id,
-                merchant_id=settings.PAYMASTER_MERCHANT_ID,
+            self.invoice_id,
+            merchant_id=settings.PAYMASTER_MERCHANT_ID,
         )
         assert result
 
     def test_get_payments(self):
         result = self.client.get_payments(
-                period_from='2016-01-01',
-                period_to='2016-01-25',
+            period_from='2016-01-01',
+            period_to='2016-01-25',
         )
         assert result
 
@@ -65,5 +69,3 @@ class ApiTest(TestCase):
     def test_cancel_payment(self):
         result = self.client.cancel_payment(self.payment_id)
         assert result
-
-

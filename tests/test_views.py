@@ -7,6 +7,7 @@ from django.test import TestCase, Client
 from django.core.urlresolvers import reverse
 from django.contrib.auth import get_user_model
 from django.http import QueryDict
+from django.utils.encoding import smart_bytes
 
 from paymaster import settings, utils
 from paymaster.models import Invoice
@@ -15,6 +16,7 @@ from .models import ActivityLog
 
 class TestAll(TestCase):
     def setUp(self):
+        self.client = Client(HTTP_HOST='example.com')
         get_user_model().objects.create_user(
             username='user', password='pass')
 
@@ -43,17 +45,16 @@ class TestAll(TestCase):
         assert ActivityLog.objects.filter(action='init').count() == 1
 
         data = QueryDict(response.get('Location').split('?')[-1]).dict()
-        data['LMI_PAYMENT_DESC'] = base64.decodestring(
-            data['LMI_PAYMENT_DESC_BASE64'])
+        data['LMI_PAYMENT_DESC'] = base64.decodebytes(smart_bytes(data['LMI_PAYMENT_DESC_BASE64']))
         data['LMI_PAID_AMOUNT'] = data['LMI_PAYMENT_AMOUNT']
         data['LMI_PAID_CURRENCY'] = data['LMI_CURRENCY']
         data['LMI_PAYMENT_SYSTEM'] = 'WebMoney'
         data['LMI_SIM_MODE'] = ''
 
-        self.client = Client()
+        self.client = Client(HTTP_HOST='example.com')
         response = self.client.post(reverse('paymaster:confirm'), data)
         assert 200 == response.status_code
-        assert response.content == 'YES'
+        assert response.content == b'YES'
         assert ActivityLog.objects.filter(action='confirm').count() == 1
 
         data['LMI_SYS_PAYMENT_ID'] = 'A184F-CA23'
@@ -64,11 +65,11 @@ class TestAll(TestCase):
 
         hash_method = settings.PAYMASTER_HASH_METHOD
         _hash = getattr(hashlib, hash_method)(_line.encode('utf-8'))
-        _hash = base64.encodestring(_hash.digest()).replace('\n', '')
+        _hash = base64.encodebytes(_hash.digest()).strip()
 
         response = self.client.post(reverse('paymaster:paid'), data)
         assert 200 == response.status_code
-        assert 'HashError' in response.content
+        assert b'HashError' in response.content
         assert ActivityLog.objects.filter(action='paid').count() == 0
 
         response = self.client.post(reverse('paymaster:fail'), data)
@@ -84,7 +85,7 @@ class TestAll(TestCase):
 
         response = self.client.post(reverse('paymaster:paid'), data)
         assert 200 == response.status_code
-        assert 'InvoiceDuplicationError' in response.content
+        assert b'InvoiceDuplicationError' in response.content
         assert ActivityLog.objects.filter(action='paid').count() == 1
 
         response = self.client.post(reverse('paymaster:success'), data)

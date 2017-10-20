@@ -10,8 +10,8 @@ https://docs.djangoproject.com/en/1.6/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.6/howto/deployment/checklist/
@@ -24,12 +24,25 @@ DEBUG = True
 
 TEMPLATE_DEBUG = True
 
-ALLOWED_HOSTS = []
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.contrib.auth.context_processors.auth'
+            ],
+        }
+    },
+]
 
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'example.com'
+]
 
 PAYMASTER_PASSWORD = '123'
 PAYMASTER_MERCHANT_ID = '1b0f35e2-fdde-4594-a36b-0b783210eabd'
-
 
 # Application definition
 
@@ -40,11 +53,10 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_coverage',
     'debug_toolbar',
 
     'paymaster',
-    'test_app',
+    'tests',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -57,12 +69,9 @@ MIDDLEWARE_CLASSES = (
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 )
 
+ROOT_URLCONF = 'tests.urls'
 
-ROOT_URLCONF = 'testproject.urls'
-
-WSGI_APPLICATION = 'testproject.wsgi.application'
-AUTH_USER_MODEL = 'test_app.User'
-
+AUTH_USER_MODEL = 'tests.User'
 
 # Database
 # https://docs.djangoproject.com/en/1.6/ref/settings/#databases
@@ -70,7 +79,7 @@ AUTH_USER_MODEL = 'test_app.User'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'testproject', 'db.sqlite3'),
+        'NAME': os.path.join(BASE_DIR, 'tests', 'db.sqlite3'),
     }
 }
 
@@ -87,7 +96,6 @@ USE_L10N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.6/howto/static-files/
 
@@ -98,9 +106,9 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-             'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s',
-             'datefmt': '%Y-%m-%d %H:%M:%S'
-         },
+            'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        },
     },
     'handlers': {
         'console': {
@@ -116,7 +124,6 @@ LOGGING = {
         },
     }
 }
-
 
 try:
     from .local_settings import *

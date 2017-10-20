@@ -8,19 +8,19 @@
     @contact: scailer@russia.ru
     @status: stable
 """
-
 import base64
-import urllib
-import urlparse
 from datetime import datetime, timedelta
 
+import six
 from django.core.exceptions import ValidationError
 from django.db.transaction import atomic
 from django.http import HttpResponseRedirect, HttpResponse, QueryDict
+from django.utils.encoding import smart_text
 from django.utils.translation import ugettext_lazy as _
 from django.views import generic
 
-from paymaster.utils import calculate_hash
+from paymaster.compat import urlparse, urlencode
+from paymaster.utils import calculate_hash, get_post_or_get
 from . import forms
 from . import logger
 from . import settings
@@ -75,7 +75,7 @@ class InitialView(generic.FormView):
             return self.form_invalid(form)
 
         logger.info(
-                u'User {0} redirected to {1}'.format(self.user, url)
+            u'User {0} redirected to {1}'.format(self.user, url)
         )
 
         return HttpResponseRedirect(url)
@@ -86,7 +86,7 @@ class InitialView(generic.FormView):
 
     def get_payer_id(self, form):
         """ Получаем кодированный идентификатор плательщика """
-        return PayerEncoder.encode(self.get_payer(form))
+        return PayerEncoder.encode(self.get_payer(form).pk)
 
     def get_amount(self, form):
         """ Получаем сумму платежа """
@@ -110,8 +110,8 @@ class InitialView(generic.FormView):
     def get_description(self, form):
         """ Получаем описание """
         return _(settings.PAYMASTER_DESCRIPTION_MASK).format(
-                payer=self.get_payer(),
-                number=self.get_payment_no(form)
+            payer=self.get_payer(form),
+            number=self.get_payment_no(form)
         )
 
     def get_description_base64(self, form):
@@ -124,7 +124,7 @@ class InitialView(generic.FormView):
         phone = getattr(payer, self.phone_field, None)
 
         if phone is not None:
-            return u''.join(x for x in unicode(phone) if x in '1234567890')
+            return u''.join(x for x in six.text_type(phone) if x in '1234567890')
 
     def get_payer_email(self, form):
         """ Получаем электронную почту """
@@ -153,7 +153,7 @@ class InitialView(generic.FormView):
         return url
 
     def _normalize_url(self, url):
-        url = unicode(url)
+        url = six.text_type(url)
         url_parts = urlparse.urlparse(url)
         if not url_parts.netloc:
             hostname = self.request.META['HTTP_HOST']
@@ -235,9 +235,8 @@ class InitialView(generic.FormView):
         return data
 
     def _build_url(self, base_url, query_data):
-        query = urllib.urlencode(query_data)
-        return '?'.join([unicode(base_url), query])
-
+        query = urlencode(query_data)
+        return '?'.join([six.text_type(base_url), query])
 
 
 class ConfirmView(utils.CSRFExempt, generic.View):
@@ -261,8 +260,9 @@ class ConfirmView(utils.CSRFExempt, generic.View):
         # Создание счета в БД продавца
         invoice = Invoice.objects.create_from_api(request.POST)
         if invoice:
+
             logger.info(u'Invoice {0} payment confirm.'.format(invoice.number))
-            payer = PayerEncoder.decode(self.request.REQUEST.get('LOC_PAYER_ID'))
+            payer = PayerEncoder.decode(get_post_or_get(self.request).get('LOC_PAYER_ID'))
             # Отправка сигнал подтверждения счета.
             signals.invoice_confirm.send(sender=self, payer=payer, invoice=invoice)
         return HttpResponse('YES', content_type='text/plain')
@@ -286,15 +286,15 @@ class NotificationView(utils.CSRFExempt, generic.View):
     def check_hash(self, data):
         """ Проверка ключа безопасности """
         _hash = calculate_hash(data, hashed_fields=self._hash_fields)
-        return _hash == data.get('LMI_HASH')
+        return _hash == smart_text(data.get('LMI_HASH'))
 
     @atomic
     def post(self, request):
         if not self.check_hash(request.POST):  # Проверяем ключ
             logger.debug(u'NotificationPaid error. Data: %s, hashed_fields: %s', request.POST.dict(), self._hash_fields)
             logger.error(
-                    u'Invoice {0} payment failed by reason: HashError'.format(
-                            request.POST.get('LMI_PAYMENT_NO')))
+                u'Invoice {0} payment failed by reason: HashError'.format(
+                    request.POST.get('LMI_PAYMENT_NO')))
 
             return HttpResponse('HashError', status=settings.PAYMASTER_HASH_FAIL_HTTP_CODE)
 
@@ -303,13 +303,13 @@ class NotificationView(utils.CSRFExempt, generic.View):
 
         except Invoice.InvoiceDuplication:
             logger.error(
-                    u'Invoice {0} payment failed by reason: Duplication'.format(
-                            request.POST.get('LMI_PAYMENT_NO')))
+                u'Invoice {0} payment failed by reason: Duplication'.format(
+                    request.POST.get('LMI_PAYMENT_NO')))
 
             return HttpResponse('InvoiceDuplicationError')
 
         logger.info(u'Invoice {0} paid succesfully.'.format(invoice.number))
-        payer = PayerEncoder.decode(self.request.REQUEST.get('LOC_PAYER_ID'))
+        payer = PayerEncoder.decode(get_post_or_get(self.request).get('LOC_PAYER_ID'))
 
         # Отправляем сигнал об успешной оплате
         signals.invoice_paid.send(sender=self, payer=payer, invoice=invoice)
@@ -327,7 +327,7 @@ class SuccessView(utils.CSRFExempt, generic.TemplateView):
     """
 
     def get(self, request):
-        invoice = Invoice.objects.get(number=request.REQUEST['LMI_PAYMENT_NO'])
+        invoice = Invoice.objects.get(number=get_post_or_get(request)['LMI_PAYMENT_NO'])
         logger.info(u'Invoice {0} success page visited'.format(invoice.number))
         signals.success_visited.send(sender=self, invoice=invoice)
         return super(SuccessView, self).get(request)
@@ -345,24 +345,22 @@ class FailView(utils.CSRFExempt, generic.TemplateView):
     """
 
     def get(self, request):
-        payment_no = request.REQUEST['LMI_PAYMENT_NO']
+        payment_no = get_post_or_get(request)['LMI_PAYMENT_NO']
 
         try:
             invoice = Invoice.objects.get(number=payment_no)
             logger.info(
-                    u'Invoice {0} fail page visited'.format(invoice.number))
+                u'Invoice {0} fail page visited'.format(invoice.number))
 
         except Invoice.DoesNotExist:
             invoice = None
             logger.error(
-                    u'Invoice {0} DoesNotExist'.format(payment_no))
+                u'Invoice {0} DoesNotExist'.format(payment_no))
 
         signals.fail_visited.send(
-                sender=self, data=request.REQUEST, invoice=invoice)
+            sender=self, data=get_post_or_get(request), invoice=invoice)
 
         return super(FailView, self).get(request)
 
     def post(self, request):
         return self.get(request)
-
-

@@ -1,6 +1,7 @@
 # coding: utf-8
 from __future__ import unicode_literals
 
+import logging
 import time
 
 import datetime
@@ -11,6 +12,8 @@ from paymaster.models import Refund, Invoice
 
 from paymaster.rest_api.client import PaymasterApiClient
 from paymaster.signals import refund_created, refund_failure, refund_success, invoice_paid
+
+logger = logging.getLogger(__name__)
 
 API_MAP = {
     'SiteInvoiceID': 'number',
@@ -41,7 +44,7 @@ class Command(BaseCommand):
 
     @atomic
     def update_payment(self, payment_data):
-        print payment_data
+        logging.debug("update_payment: %s", payment_data)
 
         update_data = {
             'status': payment_data['State'],
@@ -50,12 +53,12 @@ class Command(BaseCommand):
         try:
             invoice = Invoice.objects.get(number=payment_data['SiteInvoiceID'])
         except Invoice.DoesNotExist:
-            print "Not Found"
+            logging.info("Not found invoice: %(SiteInvoiceID)s", **payment_data)
             return None
 
         if invoice.is_finish():
             # Закрытые счета не обновляем
-            print "Already Close"
+            logging.info("Invoice %s already closed", invoice.number)
             return None
 
         if update_data['status'] == Invoice.STATUS_COMPLETE:
@@ -68,13 +71,13 @@ class Command(BaseCommand):
 
         invoice.save()
         if invoice.is_complete():
-            print "SUCCESS"
             invoice_paid.send(sender=self, payer=None, invoice=invoice)
+            logging.info("SUCCESS: Invoice %s", invoice.number)
 
 
     @atomic
     def update_refund(self, refund_data):
-        print refund_data
+        logging.debug("update_refund: %s", refund_data)
         update_data = {
             'status': refund_data['State'],
             'refund_date': refund_data['LastUpdate'],
@@ -90,7 +93,7 @@ class Command(BaseCommand):
             defaults['invoice'] = Invoice.objects.get(payment_id=defaults['payment_id'])
         except Invoice.DoesNotExist:
             # Инвойса нет в нашей системе, отложим до лучших времен
-            print "SKIP", refund_data['RefundID']
+            logging.debug("SKIP: %s", refund_data['RefundID'])
             return None
 
         ext_id = refund_data['ExternalID']
@@ -105,7 +108,7 @@ class Command(BaseCommand):
             )
 
         if created:
-            print "CREATED", refund_data['RefundID']
+            logging.debug("CREATED: %s", refund_data['RefundID'])
             refund_created.send(
                     sender=self,
                     data=refund_data,
@@ -121,7 +124,7 @@ class Command(BaseCommand):
         refund_obj.save()
 
         if refund_obj.is_success():
-            print "SUCCESS", refund_data['RefundID']
+            logging.debug("SUCCESS: %s", refund_data['RefundID'])
             refund_success.send(
                     sender=self,
                     data=refund_data,
@@ -130,7 +133,7 @@ class Command(BaseCommand):
             )
 
         elif refund_obj.is_failure():
-            print "FAILURE", refund_data['RefundID']
+            logging.debug("FAILURE: %s", refund_data['RefundID'])
             refund_failure.send(
                     sender=self,
                     data=refund_data,

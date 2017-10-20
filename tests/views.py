@@ -1,8 +1,5 @@
 from collections import namedtuple
 
-from django.shortcuts import render
-
-
 from paymaster.views import InitialView
 
 

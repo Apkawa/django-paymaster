@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 import base64
 import urllib
-import urlparse
+
 from datetime import datetime
 from uuid import uuid4
 
@@ -11,7 +11,8 @@ from django.core.urlresolvers import reverse_lazy
 from django.views import generic
 
 from paymaster import settings, forms
-from paymaster.utils import calculate_hash, format_dt
+from paymaster.compat import urlparse
+from paymaster.utils import calculate_hash, format_dt, get_post_or_get
 
 
 class FakePaymasterMixinView(object):
@@ -23,7 +24,7 @@ class FakePaymasterMixinView(object):
     }
 
     def _get_configured_url(self, request, url_name):
-        req_data = request.REQUEST
+        req_data = get_post_or_get(request)
         return (
             req_data.get('LMI_' + url_name)
             or getattr(settings, 'PAYMASTER_' + url_name)
@@ -187,7 +188,7 @@ class FakePaymasterMixinView(object):
 
     def get_paymaster_data(self):
         paymaster_keys = {}
-        for key, value in self.request.REQUEST.items():
+        for key, value in get_post_or_get(self.request).items():
             paymaster_keys[key] = value
         return paymaster_keys
 
@@ -221,7 +222,8 @@ class FakePaymasterView(FakePaymasterMixinView, generic.TemplateView):
         context['paymaster_keys'] = paymaster_data
         context['description'] = ''
         try:
-            context['description'] = paymaster_data.get('LMI_PAYMENT_DESC') or base64.decodestring(paymaster_data['LMI_PAYMENT_DESC_BASE64'])
+            context['description'] = paymaster_data.get('LMI_PAYMENT_DESC') or base64.decodestring(
+                paymaster_data['LMI_PAYMENT_DESC_BASE64'])
         except KeyError:
             pass
         context['number'] = paymaster_data[u'LMI_PAYMENT_NO']

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 
 from . import fake_views
 
@@ -8,7 +8,7 @@ from . import views
 from . import forms
 from . import settings
 
-urlpatterns = patterns('',
+urlpatterns = [
     url(r'^init/', views.InitialView.as_view(
         form_class=forms.DefaultPaymentForm,
         template_name='paymaster/init.html',
@@ -20,13 +20,16 @@ urlpatterns = patterns('',
     url(r'^success/',
         views.SuccessView.as_view(template_name='paymaster/success.html'),
         name='success'),
+    url(r'^failure/',
+        views.FailView.as_view(template_name='paymaster/fail.html'),
+        name='failure'),
+    # DEPRECATED
     url(r'^fail/',
         views.FailView.as_view(template_name='paymaster/fail.html'),
         name='fail'),
-)
+]
 
-if settings.DEBUG:
-    urlpatterns += patterns('',
-        url('^test/', fake_views.TestPaymasterView.as_view(), name='test'),
-        url('^fake/', fake_views.FakePaymasterView.as_view(), name='fake'),
-    )
+urlpatterns += [
+    url('^test/', fake_views.TestPaymasterView.as_view(), name='test'),
+    url('^fake/', fake_views.FakePaymasterView.as_view(), name='fake'),
+]

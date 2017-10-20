@@ -1,5 +1,7 @@
-django-paymaster
-================
+[![Build Status](https://travis-ci.org/Apkawa/django-paymaster.svg?branch=master)](https://travis-ci.org/Apkawa/django-paymaster)
+[![Coverage Status](https://coveralls.io/repos/github/Apkawa/django-paymaster/badge.svg)](https://coveralls.io/github/Apkawa/django-paymaster)
+
+# django-paymaster
 
 Приложение для интеграции платежной системы PayMaster в проекты на Django.
 Реализовано только основное API PayMaster, согласно спецификации 
@@ -7,8 +9,8 @@ django-paymaster
 
 ## Установка ##
 
-```sh
-$ pip install django simple_crypt pytz django-paymaster
+```bash
+$ pip install -e git+https://github.com/Apkawa/django-paymaster.git#egg=django-paymaster
 ```
 
 project/urls.py

@@ -1,10 +1,7 @@
 mock
--r ./requirements.txt
-
-pytest==2.8.5
+pytest
 pytest-django
 pytest-pythonpath
-
-
-django-coverage
+pytest-cov
+pdbpp
 django-debug-toolbar

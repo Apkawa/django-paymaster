@@ -1,17 +1,19 @@
 # coding: utf-8
 from __future__ import unicode_literals
 
+import re
+import requests
+
 import base64
 import hashlib
 import logging
 from collections import OrderedDict, namedtuple
-from urlparse import urljoin
 
 import datetime
 
-import re
-import requests
+import six
 
+from ..compat import urlparse
 from .exceptions import PAYMASTER_ERROR_CODES, APIError
 from .. import settings
 from ..utils import uuid4, parse_datetime
@@ -23,7 +25,7 @@ class APIClient(object):
     endpoint = None
 
     def _compose_url(self, path):
-        return urljoin(self.endpoint, path)
+        return urlparse.urljoin(self.endpoint, path)
 
     def _get_request_kwargs(self, path, data, params, method):
         """
@@ -41,8 +43,7 @@ class APIClient(object):
     def _handle_error(self, response):
         try:
             response.raise_for_status()
-        except (requests.HTTPError) as e:
-            print response.content
+        except requests.HTTPError as e:
             logger.exception(response.content)
             raise e
 
@@ -69,10 +70,10 @@ PaymentState = namedtuple('PaymentState', [
     'COMPLETE',
     'CANCELLED',
 ])(
-        'INITIATED',
-        'PROCESSING',
-        'COMPLETE',
-        'CANCELLED',
+    'INITIATED',
+    'PROCESSING',
+    'COMPLETE',
+    'CANCELLED',
 )
 
 INVOICE_REJECTED = -8
@@ -136,11 +137,11 @@ class PaymasterApiClient(APIClient):
         """
         _line = u';'.join(map(str, [data.get(key) or '' for key in fields]))
         _hash = hashlib.sha1(_line.encode('utf-8'))
-        _hash = base64.encodestring(_hash.digest()).replace('\n', '')
+        _hash = base64.encodebytes(_hash.digest()).strip()
         return _hash
 
     def _auth_params(self, params, fields):
-        fields = fields or []
+        fields = list(fields) or []
         params['nonce'] = self._gen_nonce()
         params['login'] = self.login
         fields = ['login', 'password', 'nonce'] + fields
@@ -166,7 +167,7 @@ class PaymasterApiClient(APIClient):
         if date_obj is None:
             return date_obj
 
-        if isinstance(date_obj, basestring):
+        if isinstance(date_obj, six.string_types):
             date_obj = parse_datetime(date_obj)
 
         if isinstance(date_obj, datetime.datetime):
@@ -210,7 +211,7 @@ class PaymasterApiClient(APIClient):
         :return:
         """
         params = self._auth_params(
-                {'paymentID': payment_id}, ['paymentID']
+            {'paymentID': payment_id}, ['paymentID']
         )
         response = self._get('getPayment', params=params)
         return self._prepare_payment_data(response.json()['Payment'])
