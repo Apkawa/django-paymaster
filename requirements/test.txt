@@ -3,5 +3,4 @@ pytest
 pytest-django
 pytest-pythonpath
 pytest-cov
-pdbpp
 django-debug-toolbar

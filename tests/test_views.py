@@ -96,13 +96,18 @@ class TestAll(TestCase):
         response = self.client.post(reverse('paymaster:fail'), data)
         assert 200 == response.status_code
 
-    def testElse(self):
+    def test_encode_payer(self):
+        settings.SECRET_KEY = 'simple'
+
         user = get_user_model().objects.all()[0]
         enc = utils.encode_payer(user)
-        utils.decode_payer(enc + '111')
-
-        user.pk = 1111
-        enc = utils.encode_payer(user)
-        utils.decode_payer(enc)
-
-        assert True
+        # expect_encoded = '11509900000223715408617919605901816517718220421725225317302423' \
+        #                  '12001061250612260542232051862120430501981711852060771160980662' \
+        #                  '16226081139189004245085127082148117214028191086101041197088158' \
+        #                  '176187198177010209162'
+        #
+        # self.assertEqual(enc, expect_encoded)
+        user_decoded = utils.decode_payer(enc)
+        self.assertEqual(user_decoded.pk, user.pk)
+        # user_decoded = utils.decode_payer(enc + b'111')
+        # self.assertEqual(user_decoded.pk, user.pk)

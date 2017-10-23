@@ -6,7 +6,7 @@ python:
     - "3.5"
     - "3.6"
 install: pip install tox-travis python-coveralls codecov
-script: tox
+script: tox -- --cov paymaster --cov-report term-missing
 after_success:
   - coveralls
   - codecov

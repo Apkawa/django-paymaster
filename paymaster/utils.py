@@ -2,7 +2,9 @@
 from __future__ import unicode_literals
 import six
 import base64
+import binascii
 import hashlib
+
 from uuid import uuid4
 from datetime import datetime
 
@@ -42,7 +44,7 @@ def parse_datetime(dt_string):
 def decode_payer(enc):
     """ Декодирование пользователя-инициатора платежа """
     try:
-        _chr = ''.join(chr(int(enc[i:i + 3])) for i in range(0, len(enc), 3))
+        _chr = binascii.unhexlify(enc)
         pk = decrypt(settings.SECRET_KEY, _chr)
         return get_user_model().objects.get(pk=pk)
 
@@ -56,7 +58,7 @@ def decode_payer(enc):
 def encode_payer(user):
     """ Кодирование пользователя-инициатора платежа """
     secret = encrypt(settings.SECRET_KEY, six.text_type(user.pk))
-    return u''.join(u'{0:03}'.format(ord(x)) for x in secret)
+    return binascii.hexlify(secret)
 
 
 def number_generetor(view, form):
