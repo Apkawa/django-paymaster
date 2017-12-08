@@ -8,7 +8,7 @@ import hashlib
 from uuid import uuid4
 from datetime import datetime
 
-from django.utils.encoding import smart_text
+from django.utils.encoding import smart_text, smart_bytes
 from simplecrypt import encrypt, decrypt, DecryptionException
 from django.utils.module_loading import import_string
 
@@ -25,7 +25,7 @@ def calculate_hash(data, hashed_fields, password=None, hash_method=None):
     _line = u';'.join(map(str, [data.get(key) or '' for key in hashed_fields]))
     _line += u';{0}'.format(password)
     _hash = getattr(hashlib, hash_method)(_line.encode('utf-8'))
-    _hash = base64.encodebytes(_hash.digest()).strip()
+    _hash = base64.b64encode(smart_bytes(_hash.digest())).strip()
     return smart_text(_hash)
 
 

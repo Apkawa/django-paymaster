@@ -5,6 +5,7 @@ import base64
 import json
 
 from django.contrib.auth import get_user_model
+from django.utils import six
 from django.utils.encoding import smart_bytes, smart_text
 from simplecrypt import encrypt, decrypt, DecryptionException
 
@@ -32,7 +33,7 @@ class AbstractPayerEncoder(object):
         return json.loads(smart_text(serialized_data))
 
     def decrypt(self, enc):
-        return decrypt(settings.SECRET_KEY, base64.decodebytes(smart_bytes(enc)))
+        return decrypt(settings.SECRET_KEY, base64.b64decode(smart_bytes(enc)))
 
     def encrypt(self, data):
         return encrypt(settings.SECRET_KEY, self.serialize_data(data))
@@ -49,7 +50,7 @@ class AbstractPayerEncoder(object):
 
     def encode_data(self, data):
         secret = self.encrypt(data)
-        return base64.encodestring(secret).strip()
+        return base64.b64encode(smart_bytes(secret)).strip()
 
     def encode(self, *args, **kwargs):
         raise NotImplemented()
